@@ -8,5 +8,6 @@ export const GHIDRA_BRIDGE_SOURCES = Object.freeze({
   applySeeds: "ReaGhidraApplySeeds.java",
   analysisOptions: "ReaGhidraAnalysisOptions.java",
   noReturnFix: "ReaGhidraNoReturnFix.java",
+  windowsCe: "ReaGhidraWindowsCe.java",
   mipsSoftFloat: "ReaGhidraMipsSoftFloat.java",
 } as const);

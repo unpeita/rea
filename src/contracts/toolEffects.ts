@@ -16,7 +16,7 @@ export interface ToolEffects {
    * count.
    */
   readonly executesForeignCode: boolean;
-  /** Changes an attached Android device: packages, files, or running apps. */
+  /** Changes an attached device or emulated device, including MMIO read side effects. */
   readonly mutatesDevice: boolean;
   readonly idempotent: boolean;
 }
@@ -53,6 +53,20 @@ const sessionEvidence = effects({ mutatesSession: true });
 
 /** Explicit effect audit for every public tool. */
 export const TOOL_EFFECTS: Readonly<Record<string, ToolEffects>> = {
+  inspect_emulator_state: effects({
+    mutatesSession: true,
+    accessesNetwork: true,
+    idempotent: false,
+  }),
+  // Reading MMIO can acknowledge or clear a guest device register.
+  read_emulator_memory: effects({
+    mutatesSession: true,
+    accessesNetwork: true,
+    mutatesTarget: true,
+    mutatesDevice: true,
+    mayDiscardData: true,
+    idempotent: false,
+  }),
   list_cutter_sessions: effects({ accessesNetwork: true }),
   cutter_command: effects({
     mutatesTarget: true,

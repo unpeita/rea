@@ -956,6 +956,9 @@ describe("Ghidra Windows CE fixture admission", () => {
           windows_arm_pe_subsystem: peSubsystem ?? null,
           windows_arm_pe_import: "loader-selected-language-v1",
         });
+        expect(
+          resolved.value.profile.parameters.windows_ce_static_members,
+        ).toBe(peSubsystem === 9 ? "decorated-static-no-this-v1" : undefined);
         digests.add(resolved.value.profile.digest);
       }
       expect(digests.size).toBe(5);

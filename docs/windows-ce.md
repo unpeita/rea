@@ -1,6 +1,6 @@
 # Windows CEのARM／Thumbバイナリ解析
 
-この派生版は、Windows 10以降の64ビットPC上でREAとGhidraを動かし、Windows CE用の実行ファイルを解析します。REAをWindows CEへインストールする変更ではありません。対象を実行せずに調べる静的解析に対応し、EXEとDLLの関数、文字列、参照関係、逆コンパイル結果を既存のCLIとMCPから取得します。MCPは、AIがREAの解析機能を呼び出すための接続方式です。
+この派生版は、Windows 10以降の64ビットPC上でREAとGhidraを動かし、Windows CE用の実行ファイルを解析します。REAをWindows CEへインストールする変更ではありません。対象を実行せずに調べる静的解析では、EXEとDLLの関数、文字列、参照関係、逆コンパイル結果を取得します。追加したエミュレーター連携では、起動済みのQEMUからCPUレジスター、実行状態、メモリを取得します。どちらもCLIとMCPから利用できます。MCPは、AIがREAの解析機能を呼び出すための接続方式です。
 
 ## 対応するファイル
 
@@ -51,4 +51,52 @@ GhidraのPE読込み処理に命令体系の選択を任せています。表示
 
 原本を固定して複製を解析する処理、Windowsのアクセス権検証、子プロセスの終了管理は既存の仕組みを維持します。Windows版では解析データベースへの注釈変更も引き続き提供しません。
 
-Windows CEのOSイメージ、アプリ本体、復元コードはこの公開リポジトリに含めません。QEMUで動くCE環境が手元にあっても、REAからQEMUの状態やゲストのメモリを取得する接続は、この変更には含まれていません。実行時解析を追加するには、対象プロセスの識別、実行時のロード先と静的解析アドレスの対応、命令停止時のメモリ読出しを検証する必要があります。汎用のCE OSが起動することと、特定機種のドライバーやHMIが正常動作することは、別々に確認します。
+Windows CEのOSイメージ、アプリ本体、復元コードはこの公開リポジトリに含めません。汎用のCE OSが起動することと、特定機種のドライバーやHMIが正常動作することは、別々に確認します。
+
+## staticメンバー関数の余分なthisを補正する
+
+32ビットARM、PE、Subsystem 9の解析では、Ghidraの通常解析後にC++の装飾名を調べます。装飾名は、関数名とともに引数の型やstatic指定を記録した名前です。staticと確認でき、明示引数の数が一致し、Ghidraが自動追加した先頭の`this`だけが余っている場合に、ARM解析モデルの既定の引数配置へ戻します。元の明示引数と戻り値の型は保持します。
+
+通常のインスタンス関数、利用者が型を指定した関数、独自の引数配置を持つ関数、装飾名が矛盾する関数には適用しません。装飾名が残っていない関数の推測補正も行いません。解析条件に`windows_ce_static_members: decorated-static-no-this-v1`を記録するため、補正前の保存済み結果とは区別されます。変更するのは解析用の一時データベースです。
+
+```powershell
+npm run verify:ghidra:windows-ce-cpp
+```
+
+人工DLLのstatic関数は2引数のまま、インスタンス関数は`this`と2引数のままであることを、実際のGhidraとMCPで検証します。
+
+## QEMUの実行状態とメモリを読む
+
+QMPは、QEMUの状態を問い合わせる管理用通信です。既存のQEMU起動設定へ、次のオプションを追加します。名前とUUIDはREAへの入力と一致させます。UUIDは仮想マシンを区別する識別番号です。すべてゼロの既定UUIDは受け付けません。
+
+```text
+-name ce-maintenance -uuid 927fa260-a1b2-4c3d-8e9f-0123456789ab
+-qmp tcp:127.0.0.1:50777,server=on,wait=off
+```
+
+既存のディスクを使う検証では、書込みを一時差分へ分離する`-drive ...,snapshot=on`を使います。ネットワークが不要なら`-nic none`を指定します。REAの接続機能自体はQEMUを起動・停止・再開せず、各呼出しの終了時に接続を閉じます。
+
+```powershell
+node scripts/rea.mjs inspect-emulator-state --port 50777 --expected_name ce-maintenance --expected_uuid 927fa260-a1b2-4c3d-8e9f-0123456789ab --json
+node scripts/rea.mjs read-emulator-memory --port 50777 --expected_name ce-maintenance --expected_uuid 927fa260-a1b2-4c3d-8e9f-0123456789ab --address 0x800010c0 --length 32 --address_space physical --json
+```
+
+メモリを読む前に、利用者がQEMUの管理画面などで一時停止させます。REAは`running=false`かつ`status=paused`を要求し、読取り中に実行再開などの通知を受けた場合も失敗として返します。起動直後の`prelaunch`など、`paused`以外の状態では読みません。1回の読取りは1～4096バイト、アドレスは32ビットです。通信全体は10秒、受信データは1 MiBに制限します。
+
+MCPでは`inspect_emulator_state`と`read_emulator_memory`を使います。入力名は`expected_name`、`expected_uuid`、`cpu_index`、`address_space`です。`cpu_index`は仮想CPUの番号で、省略時は0です。状態、レジスター文字列、読取りバイト列、接続先と観測条件を、REA共通の根拠データであるEvidenceとして返します。
+
+`address_space=physical`は物理アドレス、`virtual`は選択した仮想CPUの現在のアドレス空間です。Windows CEのプロセス番号やDLL名を指定する機能はありません。静的解析アドレスとの対応は、ロード先の確認と元ファイルのバイト列との照合が必要です。また、別のデバッガーやデバイスがメモリを変える可能性があり、すべての値を厳密に同時取得した結果ではありません。
+
+読取り先には既知のRAMを指定してください。メモリ上に配置されたデバイスレジスターを読むと、割込み解除などの副作用が起こる場合があります。REAはRAMとデバイスのアドレスを自動判別しないため、メモリ読取りツールの権限表示にもこの変更可能性を反映しています。接続先の名前とUUIDの一致は取り違え防止用であり、相手を認証する仕組みではありません。
+
+通信とメモリ表示形式は[QEMU Monitorの仕様](https://www.qemu.org/docs/master/system/monitor.html)に従います。
+
+## エミュレーター連携の再検証
+
+```powershell
+npm run test:focused -- tests/boundary/emulator/qmp.test.ts
+$env:REA_QEMU_COMMAND = "C:\tools\qemu\qemu-system-arm.exe"
+npm run verify:qemu:memory
+```
+
+この検証はOSやアプリを使わず、人工ARM命令だけをQEMUへ読み込みます。物理／仮想メモリの一致、CLIとMCPの結果の一致、実行中の読取り拒否を確認し、自分で起動したQEMUを終了します。Windows x64、QEMU 11.1.0、Ghidra 12.1.4で確認しました。ほかの版・ホストOSは未検証です。
