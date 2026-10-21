@@ -3,6 +3,29 @@ import { describe, expect, it } from "vitest";
 import { parseExecutableHeader } from "./binaryTarget.js";
 import { dosMz, elf, fat, pe, thinMach } from "./binaryTarget.fixture.js";
 
+describe("Windows CE header parsing", () => {
+  it.each([0x01c0, 0x01c2])(
+    "retains Windows CE subsystem for machine %i",
+    (machine) => {
+      const bytes = pe(0x01c0);
+      bytes.writeUInt16LE(machine, bytes.readUInt32LE(0x3c) + 4);
+      bytes.writeUInt16LE(9, bytes.readUInt32LE(0x3c) + 24 + 68);
+      expect(parseExecutableHeader(bytes, "x64")).toMatchObject({
+        ok: true,
+        value: {
+          format: "pe",
+          architecture: "arm",
+          peMachine: machine,
+          peSubsystem: 9,
+          managed: false,
+        },
+      });
+      bytes.writeUInt16LE(68, bytes.readUInt32LE(0x3c) + 20);
+      expect(parseExecutableHeader(bytes, "x64").ok).toBe(false);
+    },
+  );
+});
+
 describe("executable header parsing", () => {
   it("recognizes a DOS MZ without interpreting load-module bytes as e_lfanew", () => {
     expect(parseExecutableHeader(dosMz(), "x64")).toEqual({

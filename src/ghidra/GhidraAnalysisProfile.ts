@@ -240,6 +240,7 @@ export const resolveGhidraAnalysisProfile = async (
                   ? "loader-selected-language-v1"
                   : "explicit-language-v1",
               windows_arm_pe_machine: target.peMachine ?? null,
+              windows_arm_pe_subsystem: target.peSubsystem ?? null,
             }
           : {}),
         annotation_policy: "atomic-function-entry-metadata-v1",

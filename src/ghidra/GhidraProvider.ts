@@ -236,6 +236,9 @@ export class GhidraProvider implements AnalysisProviderCandidate {
           : null,
       executable_role: target.executableRole ?? null,
       managed: target.managed ?? null,
+      ...(target.format === "pe"
+        ? { pe_subsystem: target.peSubsystem ?? null }
+        : {}),
     };
     if (target.kind !== "executable")
       return {
@@ -672,14 +675,19 @@ const inspectWindowsP0TargetSupport = (
       diagnostics,
     };
   if (
-    (target.architecture === "arm" && target.peMachine !== 0x01c4) ||
+    (target.architecture === "arm" &&
+      target.peMachine !== 0x01c4 &&
+      !(
+        target.peSubsystem === 9 &&
+        (target.peMachine === 0x01c0 || target.peMachine === 0x01c2)
+      )) ||
     (target.architecture === "arm64" && target.peMachine !== 0xaa64)
   )
     return {
       status: "unsupported",
       code: "architecture_unsupported",
       reason:
-        "Windows Ghidra P0 ARM PE targets require observed ARMNT (0x01c4) or ARM64 (0xaa64) COFF machines; legacy ARM/Thumb and unknown machines are unsupported.",
+        "Windows Ghidra P0 ARM PE targets require observed ARMNT (0x01c4), ARM64 (0xaa64), or legacy ARM/Thumb (0x01c0/0x01c2) with Windows CE subsystem 9; other legacy and unknown machines are unsupported.",
       diagnostics: { ...diagnostics, pe_machine: target.peMachine ?? null },
     };
   return {

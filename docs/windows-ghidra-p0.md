@@ -21,6 +21,9 @@ additional permission flag or degraded mode is required.
   [raw NMOS 6502 image](raw-binary.md#nmos-6502) with a caller-supplied entry; and
 - the 26 read-only Ghidra inventory, memory, and function-analysis operations.
 
+この派生版では、上記に加えてWindows CEの旧ARM／Thumb形式も受け入れます。
+条件と検証方法は[Windows CE解析ガイド](windows-ce.md)を参照してください。
+
 Loaded memory reads and file offsets preserve Ghidra's observed source mappings.
 PE load-image inspection returns an explicit unsupported attestation status.
 Independent verification covers admitted DOS MZ, explicit COM, and explicit
@@ -139,8 +142,10 @@ provider admits native x86, x86-64, ARMNT (Thumb-2) and ARM64 PE applications an
 architectures, managed images, and malformed headers. The original selected
 source coordinate is preserved for native admission. The original COFF machine is
 retained separately from the normalized CPU family. ARM admission requires the
-observed ARMNT machine 0x01C4; ARM64 requires 0xAA64. Legacy ARM (0x01C0), Thumb
-(0x01C2), and unavailable machine facts do not select this Windows lane.
+observed ARMNT machine 0x01C4; ARM64 requires 0xAA64.
+この派生版では、旧ARM（0x01C0）とThumb（0x01C2）について、同じPEヘッダーから
+Windows CEを表すSubsystem 9を確認できた場合も受け入れます。
+CPU形式やSubsystemが不明な旧ARM／Thumbファイルは引き続き拒否します。
 Without a caller-selected processor override, Ghidra's PE loader
 selects the language from the PE machine field: ARM (`IMAGE_FILE_MACHINE_ARMNT`)
 imports as `ARM:LE:32:v8` (Thumb), ARM64 (`IMAGE_FILE_MACHINE_ARM64`) as
