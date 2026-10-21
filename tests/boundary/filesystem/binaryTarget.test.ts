@@ -38,6 +38,7 @@ it.each([0x01c0, 0x01c2, 0x01c4, 0xaa64])(
     const path = join(directory, "image.exe");
     const bytes = pe(peMachine === 0xaa64 ? 0xaa64 : 0x01c0);
     bytes.writeUInt16LE(peMachine, bytes.readUInt32LE(0x3c) + 4);
+    bytes.writeUInt16LE(9, bytes.readUInt32LE(0x3c) + 24 + 68);
     await writeFile(path, bytes);
     const target = await parseBinaryTarget(path);
     expect(target).toMatchObject({
@@ -46,6 +47,7 @@ it.each([0x01c0, 0x01c2, 0x01c4, 0xaa64])(
         format: "pe",
         architecture: peMachine === 0xaa64 ? "arm64" : "arm",
         peMachine,
+        peSubsystem: 9,
       },
     });
   },

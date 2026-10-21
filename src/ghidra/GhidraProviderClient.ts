@@ -352,6 +352,11 @@ export const createGhidraProviderClient = (input: {
       ...(pspExtension?.success === true
         ? { pspExtension: pspExtension.data }
         : {}),
+      ...(target.format === "pe" &&
+      target.architecture === "arm" &&
+      target.peSubsystem === 9
+        ? { windowsCe: true as const }
+        : {}),
       ...(softFloat ? { mipsSoftFloat: true as const } : {}),
       ...(target.format === "dos-mz" ? { dosMz: true } : {}),
       ...(target.format === "dos-com" ? { dosCom: true } : {}),

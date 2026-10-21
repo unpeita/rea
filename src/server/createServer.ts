@@ -3,6 +3,8 @@ import { createPacketCaptureService } from "../composition/captures.js";
 import { registerCaptureTools } from "./registerCaptureTools.js";
 import type { SignalRecordingService } from "../application/signals/SignalRecordingService.js";
 import { createSignalRecordingService } from "../composition/signals.js";
+import { registerEmulatorTools } from "./registerEmulatorTools.js";
+import { createEmulatorService } from "../composition/emulator.js";
 import { registerSignalTools } from "./registerSignalTools.js";
 import type { WasmArtifactService } from "../application/wasm/WasmArtifactService.js";
 import { wasmArtifactModule } from "../composition/wasm.js";
@@ -360,6 +362,7 @@ export const createServer = (
   );
   const packetCapture =
     options.packetCapture ?? createPacketCaptureService(environment);
+  const emulator = createEmulatorService();
   const signalRecording =
     options.signalRecording ?? createSignalRecordingService(environment);
   const webRuntime = options.webRuntime ?? createWebRuntimeService();
@@ -380,6 +383,7 @@ export const createServer = (
       fridaInstrumentation.closeAll(),
       wasmArtifact.close(),
       packetCapture.close(),
+      emulator.close(),
       signalRecording.close(),
       apktool.close(),
       jeb.close(),
@@ -541,6 +545,13 @@ export const createServer = (
   registerCaptureTools(
     server,
     packetCapture,
+    toolLogger,
+    recordEvidence,
+    analysisAdmission,
+  );
+  registerEmulatorTools(
+    server,
+    emulator,
     toolLogger,
     recordEvidence,
     analysisAdmission,

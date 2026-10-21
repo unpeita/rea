@@ -47,6 +47,8 @@ const SOURCE_PATHS = {
   cutterProvider: "dist/cutter/CutterBridgeClient.js",
   reverseEngineeringContracts:
     "dist/contracts/reverseEngineeringToolContracts.js",
+  emulatorContracts: "dist/contracts/emulatorToolContracts.js",
+  emulatorProvider: "dist/emulator/QemuEmulatorAdapter.js",
   gdbContracts: "dist/contracts/gdbToolContracts.js",
   gdbProvider: "dist/gdb/GdbSessionManager.js",
   rizinDebugContracts: "dist/contracts/rizinDebugToolContracts.js",

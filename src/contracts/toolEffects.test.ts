@@ -17,6 +17,8 @@ const EXECUTION_WORDING =
   /\b(?:run|runs|running|launch|launches|launching|execute|executes|executing|execution|start|starts|install|installs|uninstall|uninstalls)\b/iu;
 
 const EXECUTION_WORDING_EXCEPTIONS: Readonly<Record<string, string>> = {
+  inspect_emulator_state:
+    "observes an already running emulator without controlling execution",
   inspect_with_objdump:
     "runs a caller-selected inspection tool, not target code",
   start_gdb_session:
@@ -147,6 +149,7 @@ describe("tool effects", () => {
       "load_frida_script",
       "observe_native_calls",
       "push_adb_file",
+      "read_emulator_memory",
       "resume_frida_session",
       "rizin_debug_command",
       "start_adb_activity",

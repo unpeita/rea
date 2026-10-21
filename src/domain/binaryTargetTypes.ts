@@ -214,6 +214,8 @@ export type BinaryTarget =
       readonly format: "pe";
       /** Original COFF machine; undefined means this header fact is unavailable. */
       readonly peMachine?: number;
+      /** Observed optional-header subsystem; 9 identifies Windows CE GUI. */
+      readonly peSubsystem?: number;
       /** Provider-neutral PE image role observed from COFF characteristics. */
       readonly executableRole:
         | "application"

@@ -210,6 +210,11 @@ export const resolveGhidraAnalysisProfile = async (
       profile: createAnalysisProfile(provider, {
         target_kind: target.kind,
         target_format: target.format,
+        ...(target.format === "pe" &&
+        target.architecture === "arm" &&
+        target.peSubsystem === 9
+          ? { windows_ce_static_members: "decorated-static-no-this-v1" }
+          : {}),
         ...(target.format === "pe"
           ? {
               executable_role: target.executableRole ?? null,
@@ -240,6 +245,7 @@ export const resolveGhidraAnalysisProfile = async (
                   ? "loader-selected-language-v1"
                   : "explicit-language-v1",
               windows_arm_pe_machine: target.peMachine ?? null,
+              windows_arm_pe_subsystem: target.peSubsystem ?? null,
             }
           : {}),
         annotation_policy: "atomic-function-entry-metadata-v1",

@@ -888,6 +888,97 @@ describe("Windows Ghidra native failure diagnostics", () => {
   );
 });
 
+describe("Ghidra Windows CE fixture admission", () => {
+  it("admits generated Windows CE ARM and Thumb EXE/DLL files", async () => {
+    const root = fileURLToPath(new URL("../../", import.meta.url));
+    await promisify(execFile)(process.execPath, [
+      join(root, "scripts/create-ghidra-windows-ce-fixture.mjs"),
+    ]);
+    const ghidra = provider(installationHost("win32"));
+    for (const [instructionSet, peMachine] of [
+      ["arm", 0x01c0],
+      ["thumb", 0x01c2],
+    ] as const) {
+      for (const extension of ["exe", "dll"]) {
+        const path = join(
+          root,
+          "build/fixtures",
+          `rea-windows-ce-${instructionSet}.${extension}`,
+        );
+        const bytes = await readFile(path);
+        const parsed = parseExecutableHeader(bytes, "x64");
+        expect(parsed).toMatchObject({
+          ok: true,
+          value: {
+            format: "pe",
+            architecture: "arm",
+            peMachine,
+            peSubsystem: 9,
+            managed: false,
+            executableRole:
+              extension === "dll" ? "shared-library" : "application",
+          },
+        });
+        if (!parsed.ok) throw new Error(parsed.error);
+        expect(
+          ghidra.inspectTargetSupport({
+            path,
+            sha256: createHash("sha256").update(bytes).digest("hex"),
+            kind: "executable",
+            ...parsed.value,
+          }).status,
+        ).toBe("supported");
+      }
+    }
+  });
+
+  it.each([0x01c0, 0x01c2])(
+    "admits native CE machine %i only with observed subsystem 9",
+    async (peMachine) => {
+      const ghidra = provider(installationHost("win32"));
+      const digests = new Set<string>();
+      for (const peSubsystem of [undefined, 0, 2, 3, 9]) {
+        const target = {
+          ...peTarget("arm"),
+          peMachine,
+          ...(peSubsystem === undefined ? {} : { peSubsystem }),
+        };
+        expect(ghidra.inspectTargetSupport(target)).toMatchObject({
+          status: peSubsystem === 9 ? "supported" : "unsupported",
+          code: peSubsystem === 9 ? null : "architecture_unsupported",
+          diagnostics: { pe_subsystem: peSubsystem ?? null },
+        });
+        const resolved = await ghidra.resolveAnalysisProfile(target);
+        if (!resolved.ok || resolved.value.profile === null)
+          throw new Error("Expected PE profile");
+        expect(resolved.value.profile.parameters).toMatchObject({
+          windows_arm_pe_machine: peMachine,
+          windows_arm_pe_subsystem: peSubsystem ?? null,
+          windows_arm_pe_import: "loader-selected-language-v1",
+        });
+        expect(
+          resolved.value.profile.parameters.windows_ce_static_members,
+        ).toBe(peSubsystem === 9 ? "decorated-static-no-this-v1" : undefined);
+        digests.add(resolved.value.profile.digest);
+      }
+      expect(digests.size).toBe(5);
+      const ce = { ...peTarget("arm"), peMachine, peSubsystem: 9 };
+      expect(
+        ghidra.inspectTargetSupport({ ...ce, managed: true }),
+      ).toMatchObject({ code: "managed_target_unsupported" });
+      expect(
+        ghidra.inspectTargetSupport({
+          ...ce,
+          executableRole: "non-executable",
+        }),
+      ).toMatchObject({ code: "target_role_unsupported" });
+      expect(
+        ghidra.inspectTargetSupport({ ...ce, peMachine: 0xffff }),
+      ).toMatchObject({ code: "architecture_unsupported" });
+    },
+  );
+});
+
 describe("Ghidra Windows PE fixture admission", () => {
   it.each(["arm", "arm64"] as const)(
     "does not infer a COFF machine from an unobserved %s family",

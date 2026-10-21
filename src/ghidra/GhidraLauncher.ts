@@ -240,6 +240,7 @@ export interface GhidraHeadlessLauncherOptions {
   readonly analysisExtensions?: readonly GhidraExtension[];
   readonly pspExtension?: GhidraPspExtension;
   /** Remap typed float storage for the soft-float o32 ABI after analysis. */
+  readonly windowsCe?: true;
   readonly mipsSoftFloat?: true;
   /** Spawn seam for provider-boundary lifecycle tests. */
   readonly spawnProcess?: typeof spawnOwnedProviderProcess;
@@ -364,6 +365,7 @@ export class GhidraHeadlessLauncher implements GhidraLauncher {
       const headlessArguments = ghidraHeadlessArguments({
         platform,
         ...(psp === undefined ? {} : { psp: true as const }),
+        ...(this.options.windowsCe ? { windowsCe: true as const } : {}),
         ...(this.options.mipsSoftFloat === undefined
           ? {}
           : { mipsSoftFloat: this.options.mipsSoftFloat }),
@@ -680,6 +682,7 @@ export interface GhidraHeadlessArgumentOptions {
   readonly ghidraLogPath: string;
   readonly scriptLogPath: string;
   readonly psp?: true;
+  readonly windowsCe?: true;
   readonly mipsSoftFloat?: true;
   readonly dosMz?: true;
   readonly dosCom?: true;
@@ -851,6 +854,12 @@ export const ghidraHeadlessArguments = (
           scriptPath.join(bridgeDirectory, GHIDRA_BRIDGE_SOURCES.noReturnFix),
         ]),
     // After analysis and the no-return refit, before the bridge serves results.
+    ...(options.windowsCe === true
+      ? [
+          "-postScript",
+          scriptPath.join(bridgeDirectory, GHIDRA_BRIDGE_SOURCES.windowsCe),
+        ]
+      : []),
     ...(options.mipsSoftFloat === true
       ? [
           "-postScript",
